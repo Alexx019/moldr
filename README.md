@@ -1,10 +1,10 @@
 # Moldr
 
-Moldr is a tool to create, run and manage backed applications.
+Moldr is a tool to create, run and manage backed applications (ingots) based on precreated templates (molds).
 
 ## Dictionary
 - **ingot**: A especific backed instance created from a mold.
-- **mold**: A executable template that defines how an ingot is created, run and managed.
+- **mold**: A executable template that defines the structure of a backed application.
 
 ## Usage
 
@@ -20,4 +20,5 @@ Moldr is a tool to create, run and manage backed applications.
 > moldr run <ingot_name>
 > moldr stop <ingot_name>
 > moldr delete <ingot_name>
+> moldr logs <ingot_name>
 ```
