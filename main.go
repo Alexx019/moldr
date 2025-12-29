@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	if err := utils.CheckMainArgs(); err != nil {
+	if err := utils.CheckMainArgs(os.Args); err != nil {
 		fmt.Println(err)
 		return
 	}
@@ -49,10 +49,12 @@ func main() {
 
 func processCommand(command string) {
 	var err error
+	args := os.Args
+
 	switch command {
 	// List Ingots
 	case "ls", "list":
-		if err := utils.CheckListArgs(); err != nil {
+		if err := utils.CheckListArgs(args); err != nil {
 			fmt.Println(err)
 			return
 		}
@@ -60,7 +62,7 @@ func processCommand(command string) {
 
 	// New Ingot / Mold
 	case "new":
-		if err := utils.CheckNewIngotArgs(); err != nil {
+		if err := utils.CheckNewIngotArgs(args); err != nil {
 			fmt.Println(err)
 			return
 		}
@@ -94,11 +96,11 @@ func processCommand(command string) {
 
 	// Delete Ingot
 	case "del", "delete":
-		if err := utils.CheckDelArgs(); err != nil {
+		if err := utils.CheckDelArgs(args); err != nil {
 			fmt.Println(err)
 			return
 		}
-		err = commands.DeleteIngot(os.Args[2])
+		err = commands.DeleteIngot(args[2])
 		if err == nil {
 			fmt.Printf("Ingot deleted successfully\n\n")
 		}
@@ -106,33 +108,33 @@ func processCommand(command string) {
 
 	// Run Ingot
 	case "run", "start":
-		if err := utils.CheckRunArgs(); err != nil {
+		if err := utils.CheckRunArgs(args); err != nil {
 			fmt.Println(err)
 			return
 		}
-		err = commands.RunIngot(os.Args[2])
+		err = commands.RunIngot(args[2])
 		if err == nil {
 			fmt.Printf("Ingot started successfully\n\n")
 		}
 
 	// Stop Ingot
 	case "stop":
-		if err := utils.CheckStopArgs(); err != nil {
+		if err := utils.CheckStopArgs(args); err != nil {
 			fmt.Println(err)
 			return
 		}
-		err = commands.StopIngot(os.Args[2])
+		err = commands.StopIngot(args[2])
 		if err == nil {
 			fmt.Printf("Ingot stopped successfully\n\n")
 		}
 
 	// Tail Log
 	case "logs", "log":
-		if err := utils.CheckLogsArgs(); err != nil {
+		if err := utils.CheckLogsArgs(args); err != nil {
 			fmt.Println(err)
 			return
 		}
-		err = commands.TailLog(os.Args[2])
+		err = commands.TailLog(args[2])
 
 	default:
 		err = fmt.Errorf("invalid command \nrun 'moldr help' for more information")
