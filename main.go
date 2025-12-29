@@ -39,7 +39,7 @@ func main() {
 			fmt.Print(help)
 		}
 	case "version", "--version", "-v":
-		fmt.Println("moldr v0.0.2")
+		fmt.Println("moldr v1.0.0")
 
 	// Project commands
 	default:
