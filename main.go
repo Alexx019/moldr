@@ -6,6 +6,8 @@ import (
 	"moldr/src/elements"
 	"moldr/src/services"
 	"moldr/src/utils"
+	"strconv"
+	"strings"
 
 	"os"
 )
@@ -16,6 +18,7 @@ func main() {
 		return
 	}
 
+	// Load molds and ingots
 	err := loadApp()
 	if err != nil {
 		fmt.Println(err)
@@ -26,6 +29,7 @@ func main() {
 
 	command := os.Args[1]
 
+	// System commands
 	switch command {
 	case "help", "--help", "-h":
 		help, err := services.ReadHelp()
@@ -36,6 +40,8 @@ func main() {
 		}
 	case "version", "--version", "-v":
 		fmt.Println("moldr v0.0.2")
+
+	// Project commands
 	default:
 		processCommand(command)
 	}
@@ -44,22 +50,49 @@ func main() {
 func processCommand(command string) {
 	var err error
 	switch command {
+	// List Ingots
 	case "ls", "list":
 		if err := utils.CheckListArgs(); err != nil {
 			fmt.Println(err)
 			return
 		}
 		commands.ListIngots()
+
+	// New Ingot / Mold
 	case "new":
-		if err := utils.CheckNewArgs(); err != nil {
+		if err := utils.CheckNewIngotArgs(); err != nil {
 			fmt.Println(err)
 			return
 		}
-		err = commands.NewIngot(os.Args[2])
-		if err == nil {
-			fmt.Printf("Ingot created successfully\n\n")
+		var ingotName string
+		var moldName string
+		var port int
+
+		ingotName = os.Args[2]
+		moldName = strings.Split(os.Args[3], "=")[1]
+		if len(os.Args) == 5 {
+			port, _ = strconv.Atoi(strings.Split(os.Args[4], "=")[1])
 		}
+		if !elements.IsMold(moldName) {
+			fmt.Printf("Mold %s does not exist\n\n", moldName)
+			fmt.Println("Available molds:")
+			elements.ListMolds()
+			return
+		}
+		if !elements.IsAvailablePort(port) {
+			fmt.Printf("Port %d is not available\n\n", port)
+			commands.ListIngots()
+			return
+		}
+		err = commands.NewIngot(ingotName, elements.Molds[moldName], port)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		fmt.Printf("Ingot created successfully\n\n")
 		commands.ListIngots()
+
+	// Delete Ingot
 	case "del", "delete":
 		if err := utils.CheckDelArgs(); err != nil {
 			fmt.Println(err)
@@ -70,6 +103,8 @@ func processCommand(command string) {
 			fmt.Printf("Ingot deleted successfully\n\n")
 		}
 		commands.ListIngots()
+
+	// Run Ingot
 	case "run", "start":
 		if err := utils.CheckRunArgs(); err != nil {
 			fmt.Println(err)
@@ -79,6 +114,8 @@ func processCommand(command string) {
 		if err == nil {
 			fmt.Printf("Ingot started successfully\n\n")
 		}
+
+	// Stop Ingot
 	case "stop":
 		if err := utils.CheckStopArgs(); err != nil {
 			fmt.Println(err)
@@ -88,12 +125,15 @@ func processCommand(command string) {
 		if err == nil {
 			fmt.Printf("Ingot stopped successfully\n\n")
 		}
-	case "log":
-		if err := utils.CheckLogArgs(); err != nil {
+
+	// Tail Log
+	case "logs", "log":
+		if err := utils.CheckLogsArgs(); err != nil {
 			fmt.Println(err)
 			return
 		}
 		err = commands.TailLog(os.Args[2])
+
 	default:
 		err = fmt.Errorf("invalid command \nrun 'moldr help' for more information")
 	}
@@ -106,11 +146,16 @@ func processCommand(command string) {
 func loadApp() error {
 	services.Pids = make(map[string]int)
 	elements.Ingots = make(map[string]elements.Ingot)
+	elements.Molds = make(map[string]elements.Mold)
 	err := services.LoadIngots()
 	if err != nil {
 		return err
 	}
 	err = services.ReadPIDS()
+	if err != nil {
+		return err
+	}
+	err = services.LoadMolds()
 	if err != nil {
 		return err
 	}
@@ -124,6 +169,10 @@ func saveApp() {
 		fmt.Println(err)
 	}
 	err = services.WritePIDS()
+	if err != nil {
+		fmt.Println(err)
+	}
+	err = services.SaveMolds()
 	if err != nil {
 		fmt.Println(err)
 	}

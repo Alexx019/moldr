@@ -41,7 +41,16 @@ func RunProcess(name string) error {
 		}
 		defer logFile.Close()
 
-		cmd := exec.Command("ping", "-t", "localhost") // un ping
+		// Get mold especific commands
+		commands := elements.GetCommands(name)
+		filename := commands[0]
+		serve := commands[1]
+		port := commands[2]
+
+		filename = filepath.Join(dir, "data", filename)                                     // Adjust path
+		port = strings.ReplaceAll(port, "{{PORT}}", fmt.Sprint(elements.Ingots[name].Port)) // Replace port
+
+		cmd := exec.Command(filename, serve, port)
 		cmd.Stdout = logFile
 		cmd.Stderr = logFile
 
@@ -53,9 +62,9 @@ func RunProcess(name string) error {
 			return err
 		}
 
-		// guardar pid
+		// save pid
 		AddPID(name, cmd.Process.Pid)
-		elements.UpdateIngot(name, elements.Ingots[name].Port, "running", elements.Ingots[name].Path, cmd.Process.Pid)
+		elements.UpdateIngot(name, elements.Ingots[name].Mold, elements.Ingots[name].Port, "running", elements.Ingots[name].Path, cmd.Process.Pid)
 		return nil
 	})
 }
@@ -73,7 +82,7 @@ func StopProcess(name string) error {
 }
 
 func IsProcessRunning(pid int) bool {
-	// Truco para Windows: Buscar en tasklist
+	// Trick for Windows: Search in tasklist
 	cmd := exec.Command("tasklist", "/FI", fmt.Sprintf("PID eq %d", pid), "/NH")
 	out, _ := cmd.CombinedOutput()
 	return len(out) > 0 && string(out) != "" && strings.Contains(string(out), fmt.Sprintf("%d", pid))

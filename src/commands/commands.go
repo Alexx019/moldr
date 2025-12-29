@@ -20,9 +20,9 @@ const (
 
 func ListIngots() {
 	w := tabwriter.NewWriter(os.Stdout, 0, 8, 2, ' ', 0)
-	fmt.Fprintf(w, "NAME\tPATH\tPORT\tSTATUS\tPID\n")
+	fmt.Fprintf(w, "NAME\tMOLD\tPATH\tPORT\tSTATUS\tPID\n")
 	for k, v := range elements.Ingots {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", strings.ToUpper(k), v.Path, fmt.Sprint(v.Port), strings.ToUpper(v.Status), fmt.Sprint(v.PID))
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", strings.ToUpper(k), v.Mold, v.Path, fmt.Sprint(v.Port), strings.ToUpper(v.Status), fmt.Sprint(v.PID))
 	}
 	w.Flush()
 	if len(elements.Ingots) == 0 {
@@ -31,13 +31,13 @@ func ListIngots() {
 	fmt.Println()
 }
 
-func NewIngot(name string) error {
+func NewIngot(name string, mold elements.Mold, port int) error {
 	if _, ok := elements.Ingots[name]; ok {
 		return fmt.Errorf("ingot with name %s already exists", name)
 	}
 
-	elements.AddIngot(name)
-	err := services.NewIngotFolder(name)
+	elements.AddIngot(name, mold.Name, port)
+	err := services.NewIngotFolder(name, mold)
 	if err != nil {
 		return err
 	}
@@ -60,15 +60,18 @@ func RunIngot(name string) error {
 		return fmt.Errorf("ingot with name %s does not exist", name)
 	}
 
-	// Verificar si ya está corriendo
+	// Check if is running
 	if pid, running := services.Pids[name]; running {
 		if services.IsProcessRunning(pid) {
 			return fmt.Errorf("ingot with name %s is already running", name)
 		}
-		// Si está en el mapa pero no corriendo, limpiamos el mapa
+		// If it is in the map but not running, clean the map
 		services.RemovePID(name)
 	}
-	services.RunProcess(name)
+	err := services.RunProcess(name)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -78,7 +81,7 @@ func StopIngot(name string) error {
 	}
 	if elements.Ingots[name].Status == "running" {
 		services.StopProcess(name)
-		elements.UpdateIngot(name, elements.Ingots[name].Port, "stopped", elements.Ingots[name].Path, 0)
+		elements.UpdateIngot(name, elements.Ingots[name].Mold, elements.Ingots[name].Port, "stopped", elements.Ingots[name].Path, 0)
 	}
 	return nil
 }
@@ -92,8 +95,12 @@ func TailLog(name string) error {
 		}
 		defer file.Close()
 
-		// Ir al final del archivo para ver solo lo nuevo (Opcional: quitar Seek para ver todo)
-		file.Seek(0, 2)
+		// Read all written and wait for the process to write more
+		stat, _ := file.Stat()
+		if stat.Size() > 2048 {
+			file.Seek(-2048, io.SeekEnd)
+		}
+		file.Seek(0, io.SeekStart)
 
 		reader := bufio.NewReader(file)
 		fmt.Printf("Viendo logs de '%s' (Ctrl+C para salir)...\n", name)
@@ -102,7 +109,7 @@ func TailLog(name string) error {
 			line, err := reader.ReadString('\n')
 			if err != nil {
 				if err == io.EOF {
-					// Si llegamos al final, esperamos un poco a que el proceso escriba más
+					// If we reach the end, wait a little while the process writes more
 					time.Sleep(500 * time.Millisecond)
 					continue
 				}

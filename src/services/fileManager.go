@@ -7,12 +7,15 @@ import (
 	"moldr/src/utils"
 	"os"
 	"path/filepath"
+
+	"gopkg.in/yaml.v3"
 )
 
 const (
 	data_path   = ".data"
 	pids_file   = "pids.bin"
 	ingots_file = "ingots.bin"
+	molds_dir   = "molds"
 )
 
 func LoadIngots() error {
@@ -50,23 +53,23 @@ func SaveIngots() error {
 	return err
 }
 
-func NewIngotFolder(name string) error {
+func NewIngotFolder(name string, mold elements.Mold) error {
 	err := utils.DirWrapperWithError(name, func(dir string) error {
-		if err := os.Mkdir(dir, 0755); err != nil {
+		if err := os.Mkdir(dir, 0755); err != nil { // Check if dir exists
 			return err
 		}
-		if err := os.Mkdir(filepath.Join(dir, "logs"), 0755); err != nil {
+		if err := os.Mkdir(filepath.Join(dir, "logs"), 0755); err != nil { // Check if logs dir exists
 			return err
 		}
-		if err := os.Mkdir(filepath.Join(dir, "data"), 0755); err != nil {
+		if err := os.Mkdir(filepath.Join(dir, "data"), 0755); err != nil { // Check if data dir exists
 			return err
 		}
-		if _, err := os.Create(filepath.Join(dir, "logs", "log.txt")); err != nil {
+		if _, err := os.Create(filepath.Join(dir, "logs", "log.txt")); err != nil { // Check if log.txt exists
 			return err
 		}
 		// Copy the pocketbase executable into the ingot's data directory
-		srcPath := filepath.Join("./pocketbase", "pocketbase.exe")
-		dstPath := filepath.Join(dir, "data", "pocketbase.exe")
+		srcPath := MoldPath(mold.Name)
+		dstPath := filepath.Join(dir, "data", mold.Filename)
 
 		srcFile, err := os.Open(srcPath)
 		if err != nil {
@@ -94,6 +97,101 @@ func RemoveIngotFolder(name string) error {
 		return err
 	})
 	return err
+}
+
+func LoadMolds() error {
+	err := utils.DirWrapperWithError(data_path, func(dir string) error {
+		// Open the mold dir and get a list of the dirs inside it
+		moldDir := filepath.Join(dir, molds_dir)
+		moldDirs, err := os.ReadDir(moldDir)
+		if err != nil {
+			return err
+		}
+		for _, mDir := range moldDirs {
+			if mDir.IsDir() {
+				// Open the mold dir and get a list of the files inside it
+				moldFile, err := os.Open(filepath.Join(dir, molds_dir, mDir.Name(), "mold.yaml"))
+				if err != nil {
+					return err
+				}
+				defer moldFile.Close()
+
+				/* AN EXAMPLE OF MOLD.YAML
+				name: pocketbase
+				filename: pocketbase.exe
+				args:
+					serve: serve
+					port: --http=127.0.0.1:{{PORT}}
+				*/
+
+				yamlContent, err := io.ReadAll(moldFile)
+				if err != nil {
+					return err
+				}
+				var mold elements.Mold
+				if err := yaml.Unmarshal(yamlContent, &mold); err != nil {
+					return err
+				}
+				elements.Molds[mDir.Name()] = mold
+			}
+		}
+		return nil
+	})
+	return err
+}
+
+// TODO: Implement a way to use other molds and then save them
+func SaveMolds() error {
+	err := utils.DirWrapperWithError(data_path, func(dir string) error {
+		/*
+			file, err := os.Create(filepath.Join(dir, molds_file))
+			if err != nil {
+				return err
+			}
+			defer file.Close()
+
+			encoder := gob.NewEncoder(file)
+			if err := encoder.Encode(elements.Molds); err != nil {
+				return err
+			}
+			return nil
+		*/
+		return nil
+	})
+	return err
+}
+
+func MoldPath(name string) string {
+	var path string
+	utils.DirWrapper(data_path, func(dir string) {
+		path = filepath.Join(dir, "molds", name, elements.Molds[name].Filename)
+	})
+	return path
+}
+
+// TODO: Implement a way to use other molds and then save them
+func NewMoldFromFile(path string) (elements.Mold, error) {
+	/* path -> yaml file with:
+	name: string
+	filename: string
+	args:
+		serve: string
+		port: string
+	*/
+	var mold elements.Mold = elements.Mold{}
+	err := utils.DirWrapperWithError(data_path, func(dir string) error {
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+
+		err = yaml.Unmarshal(content, &mold)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	return mold, err
 }
 
 func ReadPIDS() error {

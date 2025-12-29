@@ -9,12 +9,11 @@ Moldr is a tool to create, run and manage backed applications (ingots) based on 
 ## Usage
 
 ```bash
-# List molds and ingots
-> moldr list (molds | ingots:default)
+# List ingots
+> moldr list
 
-# Create a new ingot or mold
-> moldr new ingot <ingot_name> (--mold=<mold_name>) (--port=<port>)
-> moldr new mold <file_path>
+# Create a new ingot
+> moldr new <ingot_name> (--mold=<mold_name>) (--port=<port>)
 
 # Actions
 > moldr run <ingot_name>
